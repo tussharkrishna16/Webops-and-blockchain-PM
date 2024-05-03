@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SimpleBank {
+    address public admin;
+    struct Customer {
+        bool isRegistered;
+        uint balance;
+        uint loanAmount;
+    }
+    
+    mapping(address => Customer) public customers;
+
+    // Events
+    event Registration(address indexed customer);
+    event Deposit(address indexed customer, uint amount);
+    event Withdrawal(address indexed customer, uint amount);
+    event LoanRequest(address indexed customer, uint amount);
+    event LoanApproval(address indexed customer, uint amount);
+
+    constructor() {
+        // The creator of the smart contract is the admin.
+        admin = msg.sender;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can perform this action");
+        _;
+    }
+
+    modifier onlyRegistered() {
+        require(customers[msg.sender].isRegistered, "Customer is not registered");
+        _;
+    }
+
+    // Admin can register a new customer
+    function registerCustomer(address _customer) public onlyAdmin {
+        require(!customers[_customer].isRegistered, "Customer already registered");
+        customers[_customer] = Customer(true, 0, 0);
+        emit Registration(_customer);
+    }
+
+    // Customers can deposit money
+    function depositMoney() public payable onlyRegistered {
+        require(msg.value > 0, "Deposit amount must be greater than zero");
+        customers[msg.sender].balance += msg.value;
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // Customers can withdraw money
+    function withdrawMoney(uint _amount) public onlyRegistered {
+        require(_amount <= customers[msg.sender].balance, "Insufficient balance");
+        payable(msg.sender).transfer(_amount);
+        customers[msg.sender].balance -= _amount;
+        emit Withdrawal(msg.sender, _amount);
+    }
+
+    // Customers can request a loan
+    function requestLoan(uint _amount) public onlyRegistered {
+        require(_amount > 0, "Loan amount must be greater than zero");
+        customers[msg.sender].loanAmount += _amount;
+        emit LoanRequest(msg.sender, _amount);
+    }
+
+    // Admin can approve loan
+    function approveLoan(address _customer) public onlyAdmin {
+        require(customers[_customer].loanAmount > 0, "No loan requested");
+        uint loanAmount = customers[_customer].loanAmount;
+        customers[_customer].balance += loanAmount;
+        customers[_customer].loanAmount = 0;
+        emit LoanApproval(_customer, loanAmount);
+    }
+}
+    
